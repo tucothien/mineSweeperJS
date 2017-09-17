@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<script src="angular.min.js"></script>
+<head>
+	<title> </title>	
+</head>
+<style type="text/css">
+	.minefield {
+	    line-height:0;
+	    border-spacing:0;
+	}
+
+	.minefield td {
+	    padding:0
+	}
+</style>
+<body>
+	<div ng-app="myApp" ng-controller="personCtrl">
+		<table class="minefield">
+		    <tr ng-repeat="row in range(0,1,(minefield.gameInfo.size-1))">
+		        <td ng-repeat="column in range(0,1,minefield.gameInfo.size-1)" ng-click="onClick(row,column,minefield)" ng-mousedown="onRightClick(row,column,minefield,$event)" oncontextmenu="return false">
+		            <img ng-if="minefield.rows[row].spots[column].isCovered && !minefield.rows[row].spots[column].isFlaged && !minefield.rows[row].spots[column].isWrongFlag" src="images/covered.png">
+		            <img ng-if="minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].isFlaged" src="images/flag-mine.png">
+					<img ng-if="minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].isWrongFlag" src="images/flag-mine-wrong.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 'empty'" src="images/empty.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 'mine'" src="images/mine.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 1" src="images/number-1.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 2" src="images/number-2.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 3" src="images/number-3.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 4" src="images/number-4.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 5" src="images/number-5.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 6" src="images/number-6.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 7" src="images/number-7.png">
+				    <img ng-if="!minefield.rows[row].spots[column].isCovered && minefield.rows[row].spots[column].content == 8" src="images/number-8.png">
+		        </td>
+		    </tr>
+		</table>
+		<p>Status : {{status}}</p>
+		<p>Size: <input type="text" ng-model="size"></p>
+		<p>Number of Mines: <input type="text" ng-model="numOfMines"></p>
+		<input type="button" name="start" value="Start" ng-click="startHandler()" >
+	</div>
+
+	<script>
+		var app = angular.module('myApp', []);
+		app.controller('personCtrl', function($scope) {
+			$scope.status = "Tucothien";
+			function placeMine2(minefield){
+				console.log(2);
+				var spots = [];
+				for(var y = 0; y < minefield.gameInfo.size; y++) {
+				    for(var x = 0; x < minefield.gameInfo.size; x++) {
+				        spots.push(getSpot(minefield,x,y));
+				    }
+				}
+				for(var i = 0 ; i<minefield.gameInfo.numOfMines ; i++){
+					
+					var x = Math.round(Math.random() * (spots.length-1));
+					spots[x].content = 'mine';
+					spots.splice(x,1);
+				}
+			}
+			function placeMine(minefield){
+				for(var i = 0; i < minefield.gameInfo.numOfMines; i++) {
+					var row = Math.round(Math.random() * (minefield.gameInfo.size-1));
+			    	var column = Math.round(Math.random() * (minefield.gameInfo.size-1));
+					while(getSpot(minefield, row, column).content==='mine'){
+						row =Math.round(Math.random() * (minefield.gameInfo.size-1));
+			    		column = Math.round(Math.random() * (minefield.gameInfo.size-1));
+					}
+					getSpot(minefield, row, column).content = "mine";
+			    }
+			}
+			function calculateNumber(minefield, row, column) {
+   				var dx = [-1,0,1,-1,0,1,-1,0,1];
+   				var dy = [1,1,1,0,0,0,-1,-1,-1];
+   				if(minefield.rows[row].spots[column].content=='empty'){
+   					var numOfMines = 0;
+   					for(var i=0;i<dx.length;i++){
+   						if(row+dx[i]>=0 && row+dx[i]<minefield.gameInfo.size && column+dy[i]>=0 && column+dy[i]<minefield.gameInfo.size){
+   							if(minefield.rows[row+dx[i]].spots[column+dy[i]].content == 'mine'){
+   								numOfMines++;
+   							}
+   						}
+   					}
+   					minefield.rows[row].spots[column].content = numOfMines==0?'empty':numOfMines;
+   					//console.log(row + "," + column + "," + numOfMines);
+   				}
+			}
+			function calculateAllNumbers(minefield) {
+			    for(var y = 0; y < minefield.gameInfo.size; y++) {
+			        for(var x = 0; x < minefield.gameInfo.size; x++) {
+			            calculateNumber(minefield, x, y);
+			        }
+			    }
+			}
+			function createMinefield(size,numOfMines) {
+			    var minefield = {};
+			    minefield.rows = [];
+
+			    minefield.gameInfo = {};
+			    minefield.gameInfo.size = size;
+				minefield.gameInfo.numOfMines = numOfMines >= size*size?size*size-1 : numOfMines;
+				minefield.isEnd = false;
+
+				$scope.status = "Playing";
+
+			    for(var i = 0; i < minefield.gameInfo.size; i++) {
+			        var row = {};
+			        row.spots = [];
+
+			        for(var j = 0; j < minefield.gameInfo.size; j++) {
+			            var spot = {};
+			            spot.isCovered = true;
+			            spot.content = "empty";
+			            spot.isFlaged = false;
+			            spot.isWrongFlag = false;
+			            row.spots.push(spot);
+			        }
+
+			        minefield.rows.push(row);
+			    }
+
+			    
+			    placeMine2(minefield,minefield.gameInfo.numOfMines);
+			    calculateAllNumbers(minefield);
+			    return minefield;
+			}
+
+
+			function getSpot(minefield, row, column) {
+			    return minefield.rows[row].spots[column];
+			}
+			function getSpot2(minefield, row, column) {
+			    return minefield.rows[row].spots[column].content;
+			}
+			// function placeRandomMine(minefield) {
+			//     var row = Math.round(Math.random() * 8);
+			//     var column = Math.round(Math.random() * 8);
+			//     var spot = getSpot(minefield, row, column);
+			//     spot.content = "mine";
+			// }
+			// function placeManyRandomMines(minefield) {
+			//     for(var i = 0; i < 10; i++) {
+			//         placeRandomMine(minefield);
+			//     }
+			// }
+
+			function isInArray(x,y,emptySpot){
+				for(var i = 0; i < emptySpot.length;i++){
+					if(x===emptySpot[i].x && y===emptySpot[i].y){
+						return true;
+					}
+				}
+				return false;
+			}
+
+			
+
+			function endGame(minefield, isWin){
+				minefield.isEnd = true;
+				if(isWin){
+					for(var y = 0; y < minefield.gameInfo.size; y++) {
+				        for(var x = 0; x < minefield.gameInfo.size; x++) {
+				        	if(getSpot(minefield,x,y).isCovered)
+				        		getSpot(minefield,x,y).isFlaged = true;
+				        }
+				    }	
+				}else{
+					for(var y = 0; y < minefield.gameInfo.size; y++) {
+				        for(var x = 0; x < minefield.gameInfo.size; x++) {
+				        	var spot = getSpot(minefield,x,y);
+				        	if(spot.isCovered===true && spot.isFlaged===false && spot.isWrongFlag===false){
+				        		spot.isCovered = false;
+				        	}
+				        }
+				    }	
+				}
+				
+			}
+			function isWin(minefield){
+				if(minefield.isEnd) return;
+				for(var y = 0; y < minefield.gameInfo.size; y++) {
+			        for(var x = 0; x < minefield.gameInfo.size; x++) {
+			        	var spot = getSpot(minefield,x,y);
+			            if(spot.content!=='mine' && spot.isCovered===true){
+			            	return false;
+			            }
+			        }
+			    }
+			    console.log("thang");
+			    $scope.status = "Thang";
+			    endGame(minefield,true);
+			    // for(var y = 0; y < minefield.gameInfo.size; y++) {
+			    //     for(var x = 0; x < minefield.gameInfo.size; x++) {
+			    //     	getSpot(minefield,x,y).isFlaged = true;
+			    //     }
+			    // }
+			    return true;
+			}
+			$scope.range = function(start,step,stop){
+				var arr = [];
+				for(var i = start ; i<=stop ; i+=step){
+					arr.push(i);
+				}
+				return arr;
+			}
+
+			$scope.onRightClick = function(row,column,minefield,evt){
+				if(minefield.isEnd) return;
+				switch(evt.which) {
+			        case 1:
+			            break;
+			        case 2:
+			            // in case you need some middle click things
+			            break;
+			        case 3: //right click
+			        	if(getSpot(minefield,row,column).isCovered===true){
+			        		getSpot(minefield,row,column).isFlaged = !getSpot(minefield,row,column).isFlaged;
+			            	//console.log(getSpot(minefield,row,column).isFlaged);	
+			        	}
+			            
+			            break;
+			        default:
+			            alert("you have a strange mouse!");
+			            break;
+			    }
+				
+			}
+
+			function uncover(row,column,minefield){
+				var dx = [-1,0,1,-1,0,1,-1,0,1];
+   				var dy = [1,1,1,0,0,0,-1,-1,-1];
+				var curspot = minefield.rows[row].spots[column];
+				curspot.isCovered = false;
+				if(curspot.content==='empty'){
+					var emptySpot = [];
+					var emptySpot2 = [];
+					emptySpot.push({
+						x : row,
+						y : column
+					});
+
+					while(emptySpot.length>0){
+						var spot = emptySpot.pop();
+						var x = spot.x;
+						var y = spot.y;
+						emptySpot2.push(spot);
+						for(var i=0;i<dx.length;i++){
+	   						if(x+dx[i]>=0 && x+dx[i]<minefield.gameInfo.size && y+dy[i]>=0 && y+dy[i]<minefield.gameInfo.size){
+	   							minefield.rows[x+dx[i]].spots[y+dy[i]].isCovered = false;
+	   							if(minefield.rows[x+dx[i]].spots[y+dy[i]].content === 'empty' && isInArray(x+dx[i],y+dy[i],emptySpot2)===false){
+	   								emptySpot.push({
+										x : x+dx[i],
+										y : y+dy[i],
+	   								});
+	   							}
+	   						}
+	   					}
+					}
+					isWin(minefield);
+				}else if(curspot.content==='mine'){
+					endGame(minefield,false);
+					// for(var i = 0; i <minefield.gameInfo.size ; i++){
+					// 	for(var j = 0; j<minefield.gameInfo.size;j++){
+					// 		getSpot(minefield,i,j).isCovered = false;
+					// 	}
+					// }
+					console.log("thua");
+					$scope.status="thua";
+				}else{
+					isWin(minefield);
+				}
+			}
+
+			$scope.onClick = function(row, column,minefield){
+				var dx = [-1,0,1,-1,0,1,-1,0,1];
+   				var dy = [1,1,1,0,0,0,-1,-1,-1];
+   				var x = row;
+				var y = column;
+				var curspot = minefield.rows[row].spots[column];
+				//console.log(curspot.content);
+				if(curspot.isFlaged || minefield.isEnd) return;
+				if(curspot.isCovered===false){
+					if(typeof curspot.content==="number"){
+						var numOfFlag = 0;
+						var iswrong = false;
+						var listWrongFlag = [];
+						for(var i=0;i<dx.length;i++){
+	   						if(x+dx[i]>=0 && x+dx[i]<minefield.gameInfo.size && y+dy[i]>=0 && y+dy[i]<minefield.gameInfo.size){
+	   							var spot = getSpot(minefield,x+dx[i],y+dy[i]);
+	   							if(spot.isFlaged===true){
+	   								numOfFlag++;
+	   								if(spot.content !== 'mine'){
+	   									iswrong = true;
+	   									listWrongFlag.push(spot);
+	   								}
+	   							}
+	   						}
+	   					}
+	   					//console.log(numOfFlag + "=" + curspot.content);
+	   					if(numOfFlag === curspot.content){
+	   						if(iswrong){
+	   							for(var i=0;i<listWrongFlag.length;i++){
+	   								var s = listWrongFlag.pop();
+	   								s.isWrongFlag = true;
+	   								s.isFlaged = false;
+	   							}
+	   							endGame(minefield,false);
+	   							console.log("thua");
+	   							$scope.status = "thua";
+	   						}else{
+	   							// console.log("dung");
+		   						for(var i=0;i<dx.length;i++){
+			   						if(x+dx[i]>=0 && x+dx[i]<minefield.gameInfo.size && y+dy[i]>=0 && y+dy[i]<minefield.gameInfo.size){
+			   							if(getSpot(minefield,x+dx[i],y+dy[i]).content!=='mine'){
+			   								uncover(x+dx[i],y+dy[i],minefield);	
+			   							}
+			   							
+			   						}
+			   					}
+	   						}
+	   					}
+					}
+				}
+				uncover(row,column,minefield);				
+			}
+			
+			//placeManyRandomMines($scope.minefield);
+			$scope.startHandler = function(){
+				console.log("Start Game!!!");
+				console.log(typeof $scope.size);
+				if(parseInt($scope.size)>0 && parseInt($scope.numOfMines) >0 ){
+					console.log("size = : " + $scope.size);
+					console.log("Number of Mines : "+$scope.numOfMines);
+					$scope.minefield = createMinefield($scope.size,$scope.numOfMines);		
+				}else{
+					$scope.minefield = createMinefield(9,10);		
+					console.log("size = : " + 9);
+					console.log("Number of Mines : "+10);
+				}
+				
+			}
+			
+			// for(var y = 0; y < 9; y++) {
+			//     for(var x = 0; x < 9; x++) {
+			//         console.log("("+y+","+x +")= "+getSpot2($scope.minefield, x, y));
+			//     }
+			// }
+			
+		});
+	</script>
+</body>
+</html>
